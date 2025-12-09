@@ -22,21 +22,12 @@ func (r *userRepository) Update(user *domain.User) error {
 	return r.db.Save(user).Error
 }
 
-func (r *userRepository) FindByEmail(email string) (*domain.User, error) {
-	var user domain.User
-	err := r.db.Where("email = ?", email).First(&user).Error
-	if err != nil {
-		return nil, err
-	}
-	return &user, nil
-}
-
 func (r *userRepository) FindByEmailOrUsername(identifier string) (*domain.User, error) {
 	var user domain.User
-	err := r.db.Select("id, role").
+	err := r.db.Select("id, role, password_hash").
 		Where("email = ?", identifier).
 		Or("username = ?", identifier).
-		First(&user).Error
+		Take(&user).Error
 	if err != nil {
 		return nil, err
 	}

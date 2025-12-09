@@ -30,6 +30,10 @@ func (h *AuthHandler) SignUp(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
+	if req.Username == "" || req.Email == "" || req.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Username, email, and password are required"})
+	}
+
 	if req.Role == "" {
 		req.Role = domain.RoleUser
 	}
