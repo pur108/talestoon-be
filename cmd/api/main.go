@@ -1,7 +1,7 @@
 package main
 
 import (
-	"be/internal/server"
+	"github.com/pur108/talestoon-be.git/internal/server"
 	"context"
 	"fmt"
 	"log"
