@@ -3,10 +3,16 @@ package server
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/logger"
+
+	"github.com/pur108/talestoon-be.git/internal/delivery/http"
+	"github.com/pur108/talestoon-be.git/internal/repository"
+	"github.com/pur108/talestoon-be.git/internal/usecase"
 )
 
 func (s *FiberServer) RegisterFiberRoutes() {
 	// Apply CORS middleware
+	s.App.Use(logger.New())
 	s.App.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
@@ -16,9 +22,18 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	}))
 
 	s.App.Get("/", s.HelloWorldHandler)
-
 	s.App.Get("/health", s.healthHandler)
 
+	db := s.db.GetDB()
+
+	// user routes
+	userRepo := repository.NewUserRepository(db)
+	userUsecase := usecase.NewUserUsecase(userRepo)
+	http.NewUserHandler(s.App, userUsecase)
+
+	// auth routes
+	authUsecase := usecase.NewAuthUsecase(userRepo)
+	http.NewAuthHandler(s.App, authUsecase)
 }
 
 func (s *FiberServer) HelloWorldHandler(c *fiber.Ctx) error {
