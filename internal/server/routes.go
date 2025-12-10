@@ -11,7 +11,6 @@ import (
 )
 
 func (s *FiberServer) RegisterFiberRoutes() {
-	// Apply CORS middleware
 	s.App.Use(logger.New())
 	s.App.Use(cors.New(cors.Config{
 		AllowOrigins:     "*",
