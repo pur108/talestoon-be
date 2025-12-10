@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"github.com/pur108/talestoon-be.git/internal/database"
+	"github.com/pur108/talestoon-be/internal/database"
 )
 
 type FiberServer struct {

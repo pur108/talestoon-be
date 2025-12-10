@@ -2,8 +2,8 @@ package http
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/pur108/talestoon-be.git/internal/domain"
-	"github.com/pur108/talestoon-be.git/internal/usecase"
+	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
 type AuthHandler struct {

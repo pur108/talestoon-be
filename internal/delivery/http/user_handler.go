@@ -3,8 +3,8 @@ package http
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be.git/internal/middleware"
-	"github.com/pur108/talestoon-be.git/internal/usecase"
+	"github.com/pur108/talestoon-be/internal/middleware"
+	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
 type UserHandler struct {

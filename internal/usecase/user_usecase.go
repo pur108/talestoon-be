@@ -4,7 +4,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be.git/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain"
 )
 
 type UserUsecase interface {

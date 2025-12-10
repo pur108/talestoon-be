@@ -5,9 +5,9 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 
-	"github.com/pur108/talestoon-be.git/internal/delivery/http"
-	"github.com/pur108/talestoon-be.git/internal/repository"
-	"github.com/pur108/talestoon-be.git/internal/usecase"
+	"github.com/pur108/talestoon-be/internal/delivery/http"
+	"github.com/pur108/talestoon-be/internal/repository"
+	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
 func (s *FiberServer) RegisterFiberRoutes() {

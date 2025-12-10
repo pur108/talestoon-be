@@ -7,7 +7,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be.git/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain"
 	"golang.org/x/crypto/bcrypt"
 )
 
