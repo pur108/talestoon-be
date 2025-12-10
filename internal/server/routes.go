@@ -33,6 +33,13 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	// auth routes
 	authUsecase := usecase.NewAuthUsecase(userRepo)
 	http.NewAuthHandler(s.App, authUsecase)
+
+	// comic routes
+	comicRepo := repository.NewComicRepository(db)
+	comicUsecase := usecase.NewComicUsecase(comicRepo, userRepo)
+	http.NewComicHandler(s.App, comicUsecase)
+
+	//auto migration
 }
 
 func (s *FiberServer) HelloWorldHandler(c *fiber.Ctx) error {
