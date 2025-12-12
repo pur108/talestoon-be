@@ -11,15 +11,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/middleware"
 )
 
 type UploadHandler struct{}
 
-func NewUploadHandler(app *fiber.App) {
-	handler := &UploadHandler{}
-
-	app.Post("/api/upload", middleware.Protected(), handler.UploadFile)
+func NewUploadHandler(app *fiber.App) *UploadHandler {
+	return &UploadHandler{}
 }
 
 func (h *UploadHandler) UploadFile(c *fiber.Ctx) error {

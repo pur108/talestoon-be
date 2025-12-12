@@ -12,7 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
 )
 
 // Service represents a service that interacts with a database.
@@ -41,23 +41,41 @@ func New() Service {
 	}
 
 	connStr := os.Getenv("SUPABASE_DB_URL")
+
 	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = db.AutoMigrate(
-		&domain.User{},
-		&domain.Comic{},
-		&domain.Season{},
-		&domain.Chapter{},
-		&domain.ChapterImage{},
-		&domain.Tag{},
-		&domain.TagTranslation{},
+		&entity.User{},
+		&entity.Comic{},
+		&entity.Season{},
+		&entity.Chapter{},
+		&entity.ChapterImage{},
+		&entity.Tag{},
+		&entity.TagTranslation{},
+		&entity.LibraryEntry{},
+		&entity.LibraryFolder{},
+		&entity.LibraryFolderItem{},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	// sqlDB, err := db.DB()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+
+	// // SetMaxIdleConns sets the maximum number of connections in the idle connection pool.
+	// sqlDB.SetMaxIdleConns(10)
+
+	// // SetMaxOpenConns sets the maximum number of open connections to the database.
+	// sqlDB.SetMaxOpenConns(100)
+
+	// // SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+	// sqlDB.SetConnMaxLifetime(time.Hour)
 
 	dbInstance = &service{db: db}
 	return dbInstance

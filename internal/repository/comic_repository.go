@@ -2,7 +2,8 @@ package repository
 
 import (
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/domain/repository"
 	"gorm.io/gorm"
 )
 
@@ -10,24 +11,24 @@ type comicRepository struct {
 	db *gorm.DB
 }
 
-func NewComicRepository(db *gorm.DB) domain.ComicRepository {
+func NewComicRepository(db *gorm.DB) repository.ComicRepository {
 	return &comicRepository{db}
 }
 
-func (r *comicRepository) CreateComic(comic *domain.Comic) error {
+func (r *comicRepository) CreateComic(comic *entity.Comic) error {
 	return r.db.Create(comic).Error
 }
 
-func (r *comicRepository) CreateChapter(chapter *domain.Chapter) error {
+func (r *comicRepository) CreateChapter(chapter *entity.Chapter) error {
 	return r.db.Create(chapter).Error
 }
 
-func (r *comicRepository) CreateSeason(season *domain.Season) error {
+func (r *comicRepository) CreateSeason(season *entity.Season) error {
 	return r.db.Create(season).Error
 }
 
-func (r *comicRepository) GetComicByID(id uuid.UUID) (*domain.Comic, error) {
-	var comic domain.Comic
+func (r *comicRepository) GetComicByID(id uuid.UUID) (*entity.Comic, error) {
+	var comic entity.Comic
 	err := r.db.Preload("Seasons.Chapters").Preload("Tags.Translations").First(&comic, id).Error
 	if err != nil {
 		return nil, err
@@ -35,8 +36,8 @@ func (r *comicRepository) GetComicByID(id uuid.UUID) (*domain.Comic, error) {
 	return &comic, nil
 }
 
-func (r *comicRepository) GetChapterByID(id uuid.UUID) (*domain.Chapter, error) {
-	var chapter domain.Chapter
+func (r *comicRepository) GetChapterByID(id uuid.UUID) (*entity.Chapter, error) {
+	var chapter entity.Chapter
 	err := r.db.Preload("Images.TextLayers.Translations").First(&chapter, id).Error
 	if err != nil {
 		return nil, err
@@ -44,8 +45,8 @@ func (r *comicRepository) GetChapterByID(id uuid.UUID) (*domain.Chapter, error) 
 	return &chapter, nil
 }
 
-func (r *comicRepository) GetSeasonByComicID(comicID uuid.UUID, seasonNumber int) (*domain.Season, error) {
-	var season domain.Season
+func (r *comicRepository) GetSeasonByComicID(comicID uuid.UUID, seasonNumber int) (*entity.Season, error) {
+	var season entity.Season
 	err := r.db.Where("comic_id = ? AND season_number = ?", comicID, seasonNumber).First(&season).Error
 	if err != nil {
 		return nil, err
@@ -53,8 +54,8 @@ func (r *comicRepository) GetSeasonByComicID(comicID uuid.UUID, seasonNumber int
 	return &season, nil
 }
 
-func (r *comicRepository) ListComics() ([]domain.Comic, error) {
-	var comics []domain.Comic
+func (r *comicRepository) ListComics() ([]entity.Comic, error) {
+	var comics []entity.Comic
 	err := r.db.Preload("Tags.Translations").Order("updated_at desc").Limit(20).Find(&comics).Error
 	if err != nil {
 		return nil, err
@@ -62,8 +63,8 @@ func (r *comicRepository) ListComics() ([]domain.Comic, error) {
 	return comics, nil
 }
 
-func (r *comicRepository) ListComicsByCreatorID(creatorID uuid.UUID) ([]domain.Comic, error) {
-	var comics []domain.Comic
+func (r *comicRepository) ListComicsByCreatorID(creatorID uuid.UUID) ([]entity.Comic, error) {
+	var comics []entity.Comic
 	err := r.db.Preload("Tags.Translations").Where("creator_id = ?", creatorID).Order("updated_at desc").Find(&comics).Error
 	if err != nil {
 		return nil, err
@@ -71,8 +72,8 @@ func (r *comicRepository) ListComicsByCreatorID(creatorID uuid.UUID) ([]domain.C
 	return comics, nil
 }
 
-func (r *comicRepository) ListComicsByAuthor(author string) ([]domain.Comic, error) {
-	var comics []domain.Comic
+func (r *comicRepository) ListComicsByAuthor(author string) ([]entity.Comic, error) {
+	var comics []entity.Comic
 	err := r.db.Preload("Tags.Translations").Where("author = ?", author).Order("updated_at desc").Find(&comics).Error
 	if err != nil {
 		return nil, err
@@ -80,10 +81,10 @@ func (r *comicRepository) ListComicsByAuthor(author string) ([]domain.Comic, err
 	return comics, nil
 }
 
-func (r *comicRepository) UpdateComic(comic *domain.Comic) error {
+func (r *comicRepository) UpdateComic(comic *entity.Comic) error {
 	return r.db.Save(comic).Error
 }
 
 func (r *comicRepository) DeleteComic(id uuid.UUID) error {
-	return r.db.Delete(&domain.Comic{}, id).Error
+	return r.db.Delete(&entity.Comic{}, id).Error
 }

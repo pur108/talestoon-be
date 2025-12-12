@@ -5,8 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain"
-	"github.com/pur108/talestoon-be/internal/middleware"
+	"github.com/pur108/talestoon-be/internal/domain/exception"
 	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
@@ -14,19 +13,8 @@ type ComicHandler struct {
 	comicUsecase usecase.ComicUsecase
 }
 
-func NewComicHandler(app *fiber.App, comicUsecase usecase.ComicUsecase) {
-	handler := &ComicHandler{comicUsecase}
-
-	app.Get("/api/comics", handler.ListComics)
-	app.Get("/api/comics/:id", handler.GetComic)
-	app.Get("/api/chapters/:id", handler.GetChapter)
-
-	creatorGroup := app.Group("/api/creator/comics", middleware.Protected(), middleware.RoleRequired(domain.RoleCreator, domain.RoleAdmin, domain.RoleUser))
-	creatorGroup.Post("", handler.CreateComic)
-	creatorGroup.Get("", handler.ListMyComics)
-	creatorGroup.Put("/:id", handler.UpdateComic)
-	creatorGroup.Delete("/:id", handler.DeleteComic)
-	creatorGroup.Post("/:id/chapters", handler.CreateChapter)
+func NewComicHandler(app *fiber.App, comicUsecase usecase.ComicUsecase) *ComicHandler {
+	return &ComicHandler{comicUsecase}
 }
 
 func (h *ComicHandler) CreateChapter(c *fiber.Ctx) error {
@@ -53,7 +41,7 @@ func (h *ComicHandler) CreateChapter(c *fiber.Ctx) error {
 
 	chapter, err := h.comicUsecase.CreateChapter(comicID, userID, req)
 	if err != nil {
-		if err == domain.ErrUnauthorized {
+		if err == exception.ErrUnauthorized {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -130,7 +118,7 @@ func (h *ComicHandler) UpdateComic(c *fiber.Ctx) error {
 
 	comic, err := h.comicUsecase.UpdateComic(id, userID, req)
 	if err != nil {
-		if err == domain.ErrUnauthorized {
+		if err == exception.ErrUnauthorized {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
@@ -154,7 +142,7 @@ func (h *ComicHandler) DeleteComic(c *fiber.Ctx) error {
 
 	err = h.comicUsecase.DeleteComic(id, userID)
 	if err != nil {
-		if err == domain.ErrUnauthorized {
+		if err == exception.ErrUnauthorized {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete comic"})

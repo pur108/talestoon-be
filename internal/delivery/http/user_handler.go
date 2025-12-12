@@ -3,7 +3,6 @@ package http
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/middleware"
 	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
@@ -11,11 +10,8 @@ type UserHandler struct {
 	userUsecase usecase.UserUsecase
 }
 
-func NewUserHandler(app *fiber.App, userUsecase usecase.UserUsecase) {
-	handler := &UserHandler{userUsecase}
-	group := app.Group("/api/users", middleware.Protected())
-	group.Get("/me", handler.GetProfile)
-	group.Post("/become-creator", handler.BecomeCreator)
+func NewUserHandler(app *fiber.App, userUsecase usecase.UserUsecase) *UserHandler {
+	return &UserHandler{userUsecase}
 }
 
 func (h *UserHandler) GetProfile(c *fiber.Ctx) error {

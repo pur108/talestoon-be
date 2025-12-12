@@ -2,7 +2,7 @@ package http
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
 	"github.com/pur108/talestoon-be/internal/usecase"
 )
 
@@ -10,11 +10,8 @@ type AuthHandler struct {
 	authUsecase usecase.AuthUsecase
 }
 
-func NewAuthHandler(app *fiber.App, authUsecase usecase.AuthUsecase) {
-	handler := &AuthHandler{authUsecase}
-	group := app.Group("/api/auth")
-	group.Post("/signup", handler.SignUp)
-	group.Post("/login", handler.Login)
+func NewAuthHandler(app *fiber.App, authUsecase usecase.AuthUsecase) *AuthHandler {
+	return &AuthHandler{authUsecase}
 }
 
 func (h *AuthHandler) SignUp(c *fiber.Ctx) error {
@@ -22,7 +19,7 @@ func (h *AuthHandler) SignUp(c *fiber.Ctx) error {
 		Username string          `json:"username"`
 		Email    string          `json:"email"`
 		Password string          `json:"password"`
-		Role     domain.UserRole `json:"role"`
+		Role     entity.UserRole `json:"role"`
 	}
 
 	var req Request
@@ -35,7 +32,7 @@ func (h *AuthHandler) SignUp(c *fiber.Ctx) error {
 	}
 
 	if req.Role == "" {
-		req.Role = domain.RoleUser
+		req.Role = entity.RoleUser
 	}
 
 	user, err := h.authUsecase.SignUp(req.Username, req.Email, req.Password, req.Role)

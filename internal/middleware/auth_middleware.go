@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
 )
 
 func Protected() fiber.Handler {
@@ -41,7 +41,7 @@ func Protected() fiber.Handler {
 	}
 }
 
-func RoleRequired(roles ...domain.UserRole) fiber.Handler {
+func RoleRequired(roles ...entity.UserRole) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		userRole := c.Locals("role").(string)
 		for _, role := range roles {

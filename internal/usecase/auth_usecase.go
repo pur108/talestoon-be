@@ -7,24 +7,26 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/domain/repository"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthUsecase interface {
-	SignUp(username, email, password string, role domain.UserRole) (*domain.User, error)
-	Login(identifier, password string) (string, *domain.User, error)
+	SignUp(username, email, password string, role entity.UserRole) (*entity.User, error)
+	Login(identifier, password string) (string, *entity.User, error)
 }
 
 type authUsecase struct {
-	userRepo domain.UserRepository
+	userRepo repository.UserRepository
 }
 
-func NewAuthUsecase(userRepo domain.UserRepository) AuthUsecase {
+func NewAuthUsecase(userRepo repository.UserRepository) AuthUsecase {
 	return &authUsecase{userRepo}
 }
 
-func (u *authUsecase) SignUp(username, email, password string, role domain.UserRole) (*domain.User, error) {
+func (u *authUsecase) SignUp(username, email, password string, role entity.UserRole) (*entity.User, error) {
 	existingUser, _ := u.userRepo.FindByEmailOrUsername(email)
 	if existingUser != nil {
 		return nil, errors.New("email or username already exists")
@@ -40,7 +42,7 @@ func (u *authUsecase) SignUp(username, email, password string, role domain.UserR
 		return nil, err
 	}
 
-	user := &domain.User{
+	user := &entity.User{
 		ID:           uuid.New(),
 		Username:     username,
 		Email:        email,
@@ -55,7 +57,7 @@ func (u *authUsecase) SignUp(username, email, password string, role domain.UserR
 	return user, nil
 }
 
-func (u *authUsecase) Login(identifier, password string) (string, *domain.User, error) {
+func (u *authUsecase) Login(identifier, password string) (string, *entity.User, error) {
 	user, err := u.userRepo.FindByEmailOrUsername(identifier)
 	if err != nil {
 		return "", nil, errors.New("invalid credentials")

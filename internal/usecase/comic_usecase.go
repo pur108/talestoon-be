@@ -5,42 +5,44 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain"
+	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/domain/exception"
+	"github.com/pur108/talestoon-be/internal/domain/repository"
 	"github.com/pur108/talestoon-be/pkg/utils"
 )
 
 type ComicUsecase interface {
-	CreateComic(input CreateComicInput) (*domain.Comic, error)
-	GetComic(id uuid.UUID) (*domain.Comic, error)
-	GetChapter(id uuid.UUID) (*domain.Chapter, error)
-	CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*domain.Chapter, error)
-	ListComics() ([]domain.Comic, error)
-	ListMyComics(creatorID uuid.UUID) ([]domain.Comic, error)
-	UpdateComic(id uuid.UUID, creatorID uuid.UUID, input UpdateComicInput) (*domain.Comic, error)
+	CreateComic(input CreateComicInput) (*entity.Comic, error)
+	GetComic(id uuid.UUID) (*entity.Comic, error)
+	GetChapter(id uuid.UUID) (*entity.Chapter, error)
+	CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*entity.Chapter, error)
+	ListComics() ([]entity.Comic, error)
+	ListMyComics(creatorID uuid.UUID) ([]entity.Comic, error)
+	UpdateComic(id uuid.UUID, creatorID uuid.UUID, input UpdateComicInput) (*entity.Comic, error)
 	DeleteComic(id uuid.UUID, creatorID uuid.UUID) error
 }
 
 type comicUsecase struct {
-	comicRepo domain.ComicRepository
-	userRepo  domain.UserRepository
+	comicRepo repository.ComicRepository
+	userRepo  repository.UserRepository
 }
 
-func NewComicUsecase(comicRepo domain.ComicRepository, userRepo domain.UserRepository) ComicUsecase {
+func NewComicUsecase(comicRepo repository.ComicRepository, userRepo repository.UserRepository) ComicUsecase {
 	return &comicUsecase{comicRepo, userRepo}
 }
 
 type CreateComicInput struct {
 	CreatorID   uuid.UUID                 `json:"creator_id"`
-	Title       domain.MultilingualText   `json:"title"`
-	Subtitle    domain.MultilingualText   `json:"subtitle"`
-	Description domain.MultilingualText   `json:"description"`
+	Title       entity.MultilingualText   `json:"title"`
+	Subtitle    entity.MultilingualText   `json:"subtitle"`
+	Description entity.MultilingualText   `json:"description"`
 	Author      string                    `json:"author"`
 	Genres      []string                  `json:"genres"`
-	Tags        []domain.MultilingualText `json:"tags"`
+	Tags        []entity.MultilingualText `json:"tags"`
 	//ThumbnailURL        string                    `json:"thumbnail_url"`
 	CoverImageURL       string             `json:"cover_image_url"`
 	BannerImageURL      string             `json:"banner_image_url"`
-	Status              domain.ComicStatus `json:"status"`
+	Status              entity.ComicStatus `json:"status"`
 	Visibility          string             `json:"visibility"`
 	NSFW                bool               `json:"nsfw"`
 	SchedulePublishAt   *time.Time         `json:"schedule_publish_at"`
@@ -50,15 +52,15 @@ type CreateComicInput struct {
 }
 
 type UpdateComicInput struct {
-	Title       domain.MultilingualText `json:"title"`
-	Subtitle    domain.MultilingualText `json:"subtitle"`
-	Description domain.MultilingualText `json:"description"`
+	Title       entity.MultilingualText `json:"title"`
+	Subtitle    entity.MultilingualText `json:"subtitle"`
+	Description entity.MultilingualText `json:"description"`
 	Author      string                  `json:"author"`
 	Genres      []string                `json:"genres"`
 	//ThumbnailURL        string                  `json:"thumbnail_url"`
 	CoverImageURL       string             `json:"cover_image_url"`
 	BannerImageURL      string             `json:"banner_image_url"`
-	Status              domain.ComicStatus `json:"status"`
+	Status              entity.ComicStatus `json:"status"`
 	Visibility          string             `json:"visibility"`
 	NSFW                bool               `json:"nsfw"`
 	MonetizationEnabled bool               `json:"monetization_enabled"`
@@ -73,8 +75,8 @@ type CreateChapterInput struct {
 	Price         float64  `json:"price"`
 }
 
-func (u *comicUsecase) CreateComic(input CreateComicInput) (*domain.Comic, error) {
-	comic := &domain.Comic{
+func (u *comicUsecase) CreateComic(input CreateComicInput) (*entity.Comic, error) {
+	comic := &entity.Comic{
 		ID:          uuid.New(),
 		CreatorID:   input.CreatorID,
 		Title:       input.Title,
@@ -82,7 +84,6 @@ func (u *comicUsecase) CreateComic(input CreateComicInput) (*domain.Comic, error
 		Description: input.Description,
 		Author:      input.Author,
 		Genres:      input.Genres,
-
 		CoverImageURL:     input.CoverImageURL,
 		BannerImageURL:    input.BannerImageURL,
 		Status:            input.Status,
@@ -96,17 +97,17 @@ func (u *comicUsecase) CreateComic(input CreateComicInput) (*domain.Comic, error
 		UpdatedAt: time.Now(),
 	}
 
-	var tags []domain.Tag
+	var tags []entity.Tag
 	for _, t := range input.Tags {
 		tagID := uuid.New()
 		slug := utils.SimpleSlug(t.En)
 
-		tags = append(tags, domain.Tag{
+		tags = append(tags, entity.Tag{
 			ID:        tagID,
 			Slug:      slug,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
-			Translations: []domain.TagTranslation{
+			Translations: []entity.TagTranslation{
 				{
 					ID:       uuid.New(),
 					TagID:    tagID,
@@ -129,26 +130,26 @@ func (u *comicUsecase) CreateComic(input CreateComicInput) (*domain.Comic, error
 	}
 
 	user, err := u.userRepo.FindByID(input.CreatorID)
-	if err == nil && user.Role == domain.RoleUser {
-		user.Role = domain.RoleCreator
+	if err == nil && user.Role == entity.RoleUser {
+		user.Role = entity.RoleCreator
 		_ = u.userRepo.Update(user)
 	}
 
 	return comic, nil
 }
 
-func (u *comicUsecase) CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*domain.Chapter, error) {
+func (u *comicUsecase) CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*entity.Chapter, error) {
 	comic, err := u.comicRepo.GetComicByID(comicID)
 	if err != nil {
 		return nil, err
 	}
 	if comic.CreatorID != creatorID {
-		return nil, domain.ErrUnauthorized
+		return nil, exception.ErrUnauthorized
 	}
 
 	season, err := u.comicRepo.GetSeasonByComicID(comic.ID, 1)
 	if err != nil || season == nil {
-		newSeason := &domain.Season{
+		newSeason := &entity.Season{
 			ID:           uuid.New(),
 			ComicID:      comic.ID,
 			SeasonNumber: 1,
@@ -160,18 +161,18 @@ func (u *comicUsecase) CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, inp
 		season = newSeason
 	}
 
-	chapter := &domain.Chapter{
+	chapter := &entity.Chapter{
 		ID:            uuid.New(),
 		SeasonID:      season.ID,
 		ChapterNumber: input.ChapterNumber,
 		Title:         input.Title,
-		Status:        domain.ChapterPublished,
+		Status:        entity.ChapterPublished,
 		PublishedAt:   nowPtr(),
-		Images:        []domain.ChapterImage{},
+		Images:        []entity.ChapterImage{},
 	}
 
 	for i, url := range input.ImageURLs {
-		chapter.Images = append(chapter.Images, domain.ChapterImage{
+		chapter.Images = append(chapter.Images, entity.ChapterImage{
 			ID:        uuid.New(),
 			ChapterID: chapter.ID,
 			ImageURL:  url,
@@ -191,19 +192,19 @@ func nowPtr() *time.Time {
 	return &t
 }
 
-func (u *comicUsecase) GetComic(id uuid.UUID) (*domain.Comic, error) {
+func (u *comicUsecase) GetComic(id uuid.UUID) (*entity.Comic, error) {
 	return u.comicRepo.GetComicByID(id)
 }
 
-func (u *comicUsecase) GetChapter(id uuid.UUID) (*domain.Chapter, error) {
+func (u *comicUsecase) GetChapter(id uuid.UUID) (*entity.Chapter, error) {
 	return u.comicRepo.GetChapterByID(id)
 }
 
-func (u *comicUsecase) ListComics() ([]domain.Comic, error) {
+func (u *comicUsecase) ListComics() ([]entity.Comic, error) {
 	return u.comicRepo.ListComics()
 }
 
-func (u *comicUsecase) ListMyComics(creatorID uuid.UUID) ([]domain.Comic, error) {
+func (u *comicUsecase) ListMyComics(creatorID uuid.UUID) ([]entity.Comic, error) {
 	user, err := u.userRepo.FindByID(creatorID)
 	if err != nil {
 		return nil, err
@@ -213,14 +214,14 @@ func (u *comicUsecase) ListMyComics(creatorID uuid.UUID) ([]domain.Comic, error)
 	return u.comicRepo.ListComicsByCreatorID(user.ID)
 }
 
-func (u *comicUsecase) UpdateComic(id uuid.UUID, creatorID uuid.UUID, input UpdateComicInput) (*domain.Comic, error) {
+func (u *comicUsecase) UpdateComic(id uuid.UUID, creatorID uuid.UUID, input UpdateComicInput) (*entity.Comic, error) {
 	comic, err := u.comicRepo.GetComicByID(id)
 	if err != nil {
 		return nil, err
 	}
 
 	if comic.CreatorID != creatorID {
-		return nil, domain.ErrUnauthorized
+		return nil, exception.ErrUnauthorized
 	}
 
 	comic.Title = input.Title
@@ -253,7 +254,7 @@ func (u *comicUsecase) DeleteComic(id uuid.UUID, creatorID uuid.UUID) error {
 	}
 
 	if comic.CreatorID != creatorID {
-		return domain.ErrUnauthorized
+		return exception.ErrUnauthorized
 	}
 
 	return u.comicRepo.DeleteComic(id)
