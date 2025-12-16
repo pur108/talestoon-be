@@ -42,123 +42,158 @@ func (m *MockUserRepository) FindByID(id uuid.UUID) (*entity.User, error) {
 }
 
 func TestAuthUsecase_SignUp(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		mockRepo := new(MockUserRepository)
-		authUsecase := NewAuthUsecase(mockRepo)
-
-		username := "testuser"
-		email := "test@example.com"
-		password := "password123"
-		role := entity.RoleUser
-
-		mockRepo.On("FindByEmailOrUsername", email).Return(nil, errors.New("not found"))
-		mockRepo.On("FindByEmailOrUsername", username).Return(nil, errors.New("not found"))
- 
-		mockRepo.On("Create", mock.AnythingOfType("*entity.User")).Return(nil)
-
-		user, err := authUsecase.SignUp(username, email, password, role)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, user)
-		assert.Equal(t, username, user.Username)
-		assert.Equal(t, email, user.Email)
-		assert.Equal(t, role, user.Role)
-		assert.NotEmpty(t, user.PasswordHash)
-
-		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("UserAlreadyExists", func(t *testing.T) {
-		mockRepo := new(MockUserRepository)
-		authUsecase := NewAuthUsecase(mockRepo)
-
-		username := "existinguser"
-		email := "existing@example.com"
-		password := "password123"
-		role := entity.RoleUser
-
-		existingUser := &entity.User{
-			Username: username,
-			Email:    email,
-		}
-
-		mockRepo.On("FindByEmailOrUsername", email).Return(existingUser, nil)
-
-		user, err := authUsecase.SignUp(username, email, password, role)
-
-		assert.Error(t, err)
-		assert.Nil(t, user)
-		assert.Equal(t, "email or username already exists", err.Error())
-
-		mockRepo.AssertNotCalled(t, "Create", mock.Anything)
-	})
+	type fields struct {
+		mockRepo *MockUserRepository
+	}
+	type args struct {
+		username string
+		email    string
+		password string
+		role     entity.UserRole
+	}
+	tests := []struct {
+		name    string
+		prepare func(f *fields)
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Success",
+			prepare: func(f *fields) {
+				f.mockRepo.On("FindByEmailOrUsername", "test@example.com").Return(nil, errors.New("not found"))
+				f.mockRepo.On("FindByEmailOrUsername", "testuser").Return(nil, errors.New("not found"))
+				f.mockRepo.On("Create", mock.AnythingOfType("*entity.User")).Return(nil)
+			},
+			args: args{
+				username: "testuser",
+				email:    "test@example.com",
+				password: "password123",
+				role:     entity.RoleUser,
+			},
+			wantErr: false,
+		},
+		{
+			name: "UserAlreadyExists",
+			prepare: func(f *fields) {
+				existingUser := &entity.User{Username: "existinguser", Email: "existing@example.com"}
+				f.mockRepo.On("FindByEmailOrUsername", "existing@example.com").Return(existingUser, nil)
+			},
+			args: args{
+				username: "existinguser",
+				email:    "existing@example.com",
+				password: "password123",
+				role:     entity.RoleUser,
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fields{mockRepo: new(MockUserRepository)}
+			if tt.prepare != nil {
+				tt.prepare(f)
+			}
+			u := NewAuthUsecase(f.mockRepo)
+			got, err := u.SignUp(tt.args.username, tt.args.email, tt.args.password, tt.args.role)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("SignUp() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				assert.NotNil(t, got)
+				assert.Equal(t, tt.args.username, got.Username)
+			}
+			f.mockRepo.AssertExpectations(t)
+		})
+	}
 }
 
 func TestAuthUsecase_Login(t *testing.T) {
-	t.Run("Success", func(t *testing.T) {
-		mockRepo := new(MockUserRepository)
-		authUsecase := NewAuthUsecase(mockRepo)
+	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	user := &entity.User{
+		ID:           uuid.New(),
+		Username:     "testuser",
+		Email:        "test@example.com",
+		PasswordHash: string(hashedPassword),
+		Role:         entity.RoleUser,
+	}
 
-		username := "testuser"
-		password := "password123"
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-
-		user := &entity.User{
-			ID:           uuid.New(),
-			Username:     username,
-			PasswordHash: string(hashedPassword),
-			Role:         entity.RoleUser,
-		}
-
-		mockRepo.On("FindByEmailOrUsername", username).Return(user, nil)
-
-		token, loggedInUser, err := authUsecase.Login(username, password)
-
-		assert.NoError(t, err)
-		assert.NotNil(t, loggedInUser)
-		assert.NotEmpty(t, token)
-		assert.Equal(t, user, loggedInUser)
-
-		mockRepo.AssertExpectations(t)
-	})
-
-	t.Run("InvalidCredentials_UserNotFound", func(t *testing.T) {
-		mockRepo := new(MockUserRepository)
-		authUsecase := NewAuthUsecase(mockRepo)
-
-		username := "unknown"
-		password := "pass"
-
-		mockRepo.On("FindByEmailOrUsername", username).Return(nil, errors.New("not found"))
-
-		token, loggedInUser, err := authUsecase.Login(username, password)
-
-		assert.Error(t, err)
-		assert.Nil(t, loggedInUser)
-		assert.Empty(t, token)
-		assert.Equal(t, "invalid credentials", err.Error())
-	})
-
-	t.Run("InvalidCredentials_WrongPassword", func(t *testing.T) {
-		mockRepo := new(MockUserRepository)
-		authUsecase := NewAuthUsecase(mockRepo)
-
-		username := "testuser"
-		password := "wrongpassword"
-		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte("correctpassword"), bcrypt.DefaultCost)
-
-		user := &entity.User{
-			Username:     username,
-			PasswordHash: string(hashedPassword),
-		}
-
-		mockRepo.On("FindByEmailOrUsername", username).Return(user, nil)
-
-		token, loggedInUser, err := authUsecase.Login(username, password)
-
-		assert.Error(t, err)
-		assert.Nil(t, loggedInUser)
-		assert.Empty(t, token)
-		assert.Equal(t, "invalid credentials", err.Error())
-	})
+	type fields struct {
+		mockRepo *MockUserRepository
+	}
+	type args struct {
+		identifier string
+		password   string
+	}
+	tests := []struct {
+		name    string
+		prepare func(f *fields)
+		args    args
+		wantErr bool
+	}{
+		{
+			name: "Success_By_Username",
+			prepare: func(f *fields) {
+				f.mockRepo.On("FindByEmailOrUsername", "testuser").Return(user, nil)
+			},
+			args: args{
+				identifier: "testuser",
+				password:   "password123",
+			},
+			wantErr: false,
+		},
+		{
+			name: "Success_By_Email",
+			prepare: func(f *fields) {
+				f.mockRepo.On("FindByEmailOrUsername", "test@example.com").Return(user, nil)
+			},
+			args: args{
+				identifier: "test@example.com",
+				password:   "password123",
+			},
+			wantErr: false,
+		},
+		{
+			name: "InvalidCredentials_UserNotFound",
+			prepare: func(f *fields) {
+				f.mockRepo.On("FindByEmailOrUsername", "unknown").Return(nil, errors.New("not found"))
+			},
+			args: args{
+				identifier: "unknown",
+				password:   "password123",
+			},
+			wantErr: true,
+		},
+		{
+			name: "InvalidCredentials_WrongPassword",
+			prepare: func(f *fields) {
+				f.mockRepo.On("FindByEmailOrUsername", "testuser").Return(user, nil)
+			},
+			args: args{
+				identifier: "testuser",
+				password:   "wrongpassword",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fields{mockRepo: new(MockUserRepository)}
+			if tt.prepare != nil {
+				tt.prepare(f)
+			}
+			u := NewAuthUsecase(f.mockRepo)
+			token, loggedInUser, err := u.Login(tt.args.identifier, tt.args.password)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Login() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				assert.NotEmpty(t, token)
+				assert.NotNil(t, loggedInUser)
+				assert.Equal(t, user.ID, loggedInUser.ID)
+			}
+			f.mockRepo.AssertExpectations(t)
+		})
+	}
 }

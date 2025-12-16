@@ -38,7 +38,7 @@ func (r *comicRepository) GetComicByID(id uuid.UUID) (*entity.Comic, error) {
 
 func (r *comicRepository) GetChapterByID(id uuid.UUID) (*entity.Chapter, error) {
 	var chapter entity.Chapter
-	err := r.db.Preload("Images.TextLayers.Translations").First(&chapter, id).Error
+	err := r.db.First(&chapter, id).Error
 	if err != nil {
 		return nil, err
 	}
