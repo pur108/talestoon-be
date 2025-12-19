@@ -47,7 +47,9 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	libraryHandler := http.NewLibraryHandler(s.App, libraryUsecase)
 
 	// upload routes
-	uploadHandler := http.NewUploadHandler(s.App)
+	storageRepo := repository.NewSupabaseRepository()
+	uploadUsecase := usecase.NewUploadUsecase(storageRepo)
+	uploadHandler := http.NewUploadHandler(s.App, uploadUsecase)
 
 	group := s.App.Group("/api")
 
