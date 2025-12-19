@@ -1,4 +1,4 @@
-package usecase
+package usecase_test
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"
@@ -93,7 +94,7 @@ func TestAuthUsecase_SignUp(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewAuthUsecase(f.mockRepo)
+			u := usecase.NewAuthUsecase(f.mockRepo)
 			got, err := u.SignUp(tt.args.username, tt.args.email, tt.args.password, tt.args.role)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SignUp() error = %v, wantErr %v", err, tt.wantErr)
@@ -182,7 +183,7 @@ func TestAuthUsecase_Login(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewAuthUsecase(f.mockRepo)
+			u := usecase.NewAuthUsecase(f.mockRepo)
 			token, loggedInUser, err := u.Login(tt.args.identifier, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Login() error = %v, wantErr %v", err, tt.wantErr)

@@ -1,4 +1,4 @@
-package usecase
+package usecase_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/entity"
 	"github.com/pur108/talestoon-be/internal/domain/exception"
+	"github.com/pur108/talestoon-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -88,7 +89,7 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 		mockUserRepo  *MockUserRepository
 	}
 	type args struct {
-		input CreateComicInput
+		input usecase.CreateComicInput
 	}
 	tests := []struct {
 		name    string
@@ -110,7 +111,7 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 				})).Return(nil)
 			},
 			args: args{
-				input: CreateComicInput{
+				input: usecase.CreateComicInput{
 					CreatorID: creatorID,
 					Title:     entity.MultilingualText{En: "Title", Th: "Title TH"},
 					Status:    entity.ComicPublished,
@@ -125,7 +126,7 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 				f.mockComicRepo.On("CreateComic", mock.AnythingOfType("*entity.Comic")).Return(errors.New("db error"))
 			},
 			args: args{
-				input: CreateComicInput{
+				input: usecase.CreateComicInput{
 					CreatorID: uuid.New(),
 				},
 			},
@@ -141,7 +142,7 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
 			got, err := u.CreateComic(tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateComic() error = %v, wantErr %v", err, tt.wantErr)
@@ -169,7 +170,7 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 	type args struct {
 		id        uuid.UUID
 		creatorID uuid.UUID
-		input     UpdateComicInput
+		input     usecase.UpdateComicInput
 	}
 	tests := []struct {
 		name    string
@@ -193,7 +194,7 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 			args: args{
 				id:        comicID,
 				creatorID: creatorID,
-				input: UpdateComicInput{
+				input: usecase.UpdateComicInput{
 					Title: entity.MultilingualText{En: "New", Th: "New"},
 				},
 			},
@@ -211,7 +212,7 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 			args: args{
 				id:        comicID,
 				creatorID: otherID,
-				input:     UpdateComicInput{},
+				input:     usecase.UpdateComicInput{},
 			},
 			wantErr: true,
 		},
@@ -225,7 +226,7 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
 			got, err := u.UpdateComic(tt.args.id, tt.args.creatorID, tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateComic() error = %v, wantErr %v", err, tt.wantErr)
@@ -286,7 +287,7 @@ func TestComicUsecase_DeleteComic(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
 			err := u.DeleteComic(tt.args.id, tt.args.creatorID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteComic() error = %v, wantErr %v", err, tt.wantErr)
@@ -336,7 +337,7 @@ func TestComicUsecase_ListMyComics(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
 			got, err := u.ListMyComics(tt.args.creatorID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ListMyComics() error = %v, wantErr %v", err, tt.wantErr)
@@ -362,7 +363,7 @@ func TestComicUsecase_CreateChapter(t *testing.T) {
 	type args struct {
 		comicID   uuid.UUID
 		creatorID uuid.UUID
-		input     CreateChapterInput
+		input     usecase.CreateChapterInput
 	}
 	tests := []struct {
 		name    string
@@ -384,7 +385,7 @@ func TestComicUsecase_CreateChapter(t *testing.T) {
 			args: args{
 				comicID:   comicID,
 				creatorID: creatorID,
-				input: CreateChapterInput{
+				input: usecase.CreateChapterInput{
 					ChapterNumber: 1,
 					Title:         "Ch1",
 					ImageURLs:     []string{"http://img.com/1.jpg"},
@@ -402,7 +403,7 @@ func TestComicUsecase_CreateChapter(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
 			got, err := u.CreateChapter(tt.args.comicID, tt.args.creatorID, tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateChapter() error = %v, wantErr %v", err, tt.wantErr)

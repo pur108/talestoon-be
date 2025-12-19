@@ -1,4 +1,4 @@
-package usecase
+package usecase_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -155,7 +156,7 @@ func TestLibraryUsecase_AddToLibrary(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewLibraryUsecase(f.mockRepo, nil, f.mockUserRepo)
+			u := usecase.NewLibraryUsecase(f.mockRepo, nil, f.mockUserRepo)
 			if err := u.AddToLibrary(tt.args.userID, tt.args.comicID); (err != nil) != tt.wantErr {
 				t.Errorf("AddToLibrary() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -211,7 +212,7 @@ func TestLibraryUsecase_CreateFolder(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewLibraryUsecase(f.mockRepo, nil, nil)
+			u := usecase.NewLibraryUsecase(f.mockRepo, nil, nil)
 			got, err := u.CreateFolder(tt.args.userID, tt.args.name, tt.args.description, tt.args.isPublic)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateFolder() error = %v, wantErr %v", err, tt.wantErr)
@@ -275,7 +276,7 @@ func TestLibraryUsecase_AddToFolder(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewLibraryUsecase(f.mockRepo, nil, nil)
+			u := usecase.NewLibraryUsecase(f.mockRepo, nil, nil)
 			if err := u.AddToFolder(tt.userID, folderID, uuid.New()); (err != nil) != tt.wantErr {
 				t.Errorf("AddToFolder() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -323,7 +324,7 @@ func TestLibraryUsecase_DeleteFolder(t *testing.T) {
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := NewLibraryUsecase(f.mockRepo, nil, nil)
+			u := usecase.NewLibraryUsecase(f.mockRepo, nil, nil)
 			err := u.DeleteFolder(tt.userID, folderID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteFolder() error = %v, wantErr %v", err, tt.wantErr)

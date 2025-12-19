@@ -1,4 +1,4 @@
-package usecase
+package usecase_test
 
 import (
 	"errors"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/talestoon-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -61,7 +62,7 @@ func TestUserUsecase_GetProfile(t *testing.T) {
 				tt.prepare(f)
 			}
 
-			u := NewUserUsecase(f.mockRepo)
+			u := usecase.NewUserUsecase(f.mockRepo)
 			got, err := u.GetProfile(tt.args.id)
 
 			if (err != nil) != tt.wantErr {
@@ -146,7 +147,7 @@ func TestUserUsecase_BecomeCreator(t *testing.T) {
 				tt.prepare(f)
 			}
 
-			u := NewUserUsecase(f.mockRepo)
+			u := usecase.NewUserUsecase(f.mockRepo)
 			err := u.BecomeCreator(tt.id)
 
 			if (err != nil) != tt.wantErr {
