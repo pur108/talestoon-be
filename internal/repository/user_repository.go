@@ -2,7 +2,7 @@ package repository
 
 import (
 	"github.com/google/uuid"
-	
+
 	"github.com/pur108/talestoon-be/internal/domain/entity"
 	"github.com/pur108/talestoon-be/internal/domain/repository"
 

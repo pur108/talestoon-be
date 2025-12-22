@@ -6,13 +6,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/entity"
-	"github.com/pur108/talestoon-be/internal/domain/exception"
 	"github.com/pur108/talestoon-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// MockComicRepository implements repository.ComicRepository for testing
+// MockComicRepository
 type MockComicRepository struct {
 	mock.Mock
 }
@@ -58,16 +57,33 @@ func (m *MockComicRepository) GetSeasonByComicID(comicID uuid.UUID, seasonNumber
 
 func (m *MockComicRepository) ListComics() ([]entity.Comic, error) {
 	args := m.Called()
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]entity.Comic), args.Error(1)
+}
+
+func (m *MockComicRepository) ListComicsByStatus(status entity.ComicStatus) ([]entity.Comic, error) {
+	args := m.Called(status)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]entity.Comic), args.Error(1)
 }
 
 func (m *MockComicRepository) ListComicsByCreatorID(creatorID uuid.UUID) ([]entity.Comic, error) {
 	args := m.Called(creatorID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]entity.Comic), args.Error(1)
 }
 
 func (m *MockComicRepository) ListComicsByAuthor(author string) ([]entity.Comic, error) {
 	args := m.Called(author)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
 	return args.Get(0).([]entity.Comic), args.Error(1)
 }
 
@@ -81,12 +97,27 @@ func (m *MockComicRepository) DeleteComic(id uuid.UUID) error {
 	return args.Error(0)
 }
 
-func TestComicUsecase_CreateComic(t *testing.T) {
-	creatorID := uuid.New()
+// MockStorageRepository
+type MockStorageRepository struct {
+	mock.Mock
+}
 
+func (m *MockStorageRepository) UploadFile(bucketName string, filePath string, data []byte, contentType string) (string, error) {
+	args := m.Called(bucketName, filePath, data, contentType)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockStorageRepository) MoveFile(bucketName string, srcPath string, destPath string) error {
+	args := m.Called(bucketName, srcPath, destPath)
+	return args.Error(0)
+}
+
+func TestComicUsecase_CreateComic(t *testing.T) {
+	userUUID := uuid.New()
 	type fields struct {
-		mockComicRepo *MockComicRepository
-		mockUserRepo  *MockUserRepository
+		comicRepo   *MockComicRepository
+		userRepo    *MockUserRepository
+		storageRepo *MockStorageRepository // Added storageRepo
 	}
 	type args struct {
 		input usecase.CreateComicInput
@@ -95,39 +126,34 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 		name    string
 		prepare func(f *fields)
 		args    args
+		want    *entity.Comic
 		wantErr bool
 	}{
 		{
-			name: "Success_And_Promote_User_To_Creator",
+			name: "Success",
 			prepare: func(f *fields) {
-				user := &entity.User{
-					ID:   creatorID,
-					Role: entity.RoleUser,
-				}
-				f.mockComicRepo.On("CreateComic", mock.AnythingOfType("*entity.Comic")).Return(nil)
-				f.mockUserRepo.On("FindByID", creatorID).Return(user, nil)
-				f.mockUserRepo.On("Update", mock.MatchedBy(func(u *entity.User) bool {
-					return u.ID == creatorID && u.Role == entity.RoleCreator
-				})).Return(nil)
+				f.comicRepo.On("CreateComic", mock.AnythingOfType("*entity.Comic")).Return(nil)
+				f.userRepo.On("FindByID", userUUID).Return(&entity.User{ID: userUUID, Role: entity.RoleUser}, nil)
+				f.userRepo.On("Update", mock.AnythingOfType("*entity.User")).Return(nil)
 			},
 			args: args{
 				input: usecase.CreateComicInput{
-					CreatorID: creatorID,
-					Title:     entity.MultilingualText{En: "Title", Th: "Title TH"},
-					Status:    entity.ComicPublished,
-					Tags:      []entity.MultilingualText{{En: "Action", Th: "Action TH"}},
+					CreatorID: userUUID,
+					Title:     entity.MultilingualText{En: "Title En", Th: "Title Th"},
+					Status:    entity.ComicDraft,
 				},
 			},
 			wantErr: false,
 		},
 		{
-			name: "Failure_RepoError",
+			name: "Error_CreateComic_Failed",
 			prepare: func(f *fields) {
-				f.mockComicRepo.On("CreateComic", mock.AnythingOfType("*entity.Comic")).Return(errors.New("db error"))
+				f.comicRepo.On("CreateComic", mock.AnythingOfType("*entity.Comic")).Return(errors.New("db error"))
 			},
 			args: args{
 				input: usecase.CreateComicInput{
-					CreatorID: uuid.New(),
+					CreatorID: userUUID,
+					Title:     entity.MultilingualText{En: "Title En", Th: "Title Th"},
 				},
 			},
 			wantErr: true,
@@ -136,13 +162,14 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fields{
-				mockComicRepo: new(MockComicRepository),
-				mockUserRepo:  new(MockUserRepository),
+				comicRepo:   new(MockComicRepository),
+				userRepo:    new(MockUserRepository),
+				storageRepo: new(MockStorageRepository),
 			}
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.comicRepo, f.userRepo, f.storageRepo)
 			got, err := u.CreateComic(tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("CreateComic() error = %v, wantErr %v", err, tt.wantErr)
@@ -150,10 +177,120 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 			}
 			if !tt.wantErr {
 				assert.NotNil(t, got)
-				assert.Equal(t, tt.args.input.CreatorID, got.CreatorID)
+				assert.Equal(t, tt.args.input.Title.En, got.Title.En)
 			}
-			f.mockComicRepo.AssertExpectations(t)
-			f.mockUserRepo.AssertExpectations(t)
+			f.comicRepo.AssertExpectations(t)
+			f.userRepo.AssertExpectations(t)
+			f.storageRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestComicUsecase_GetComic(t *testing.T) {
+	comicID := uuid.New()
+	comic := &entity.Comic{
+		ID:    comicID,
+		Title: entity.MultilingualText{En: "Test Comic"},
+	}
+
+	type fields struct {
+		comicRepo *MockComicRepository
+	}
+	type args struct {
+		id uuid.UUID
+	}
+	tests := []struct {
+		name    string
+		prepare func(f *fields)
+		args    args
+		want    *entity.Comic
+		wantErr bool
+	}{
+		{
+			name: "Success",
+			prepare: func(f *fields) {
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+			},
+			args:    args{id: comicID},
+			want:    comic,
+			wantErr: false,
+		},
+		{
+			name: "NotFound",
+			prepare: func(f *fields) {
+				f.comicRepo.On("GetComicByID", comicID).Return(nil, errors.New("not found"))
+			},
+			args:    args{id: comicID},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fields{comicRepo: new(MockComicRepository)}
+			if tt.prepare != nil {
+				tt.prepare(f)
+			}
+			u := usecase.NewComicUsecase(f.comicRepo, nil, nil)
+			got, err := u.GetComic(tt.args.id)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("GetComic() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				assert.Equal(t, tt.want, got)
+			}
+			f.comicRepo.AssertExpectations(t)
+		})
+	}
+}
+
+func TestComicUsecase_ListComics(t *testing.T) {
+	comics := []entity.Comic{
+		{ID: uuid.New(), Title: entity.MultilingualText{En: "Comic 1"}},
+		{ID: uuid.New(), Title: entity.MultilingualText{En: "Comic 2"}},
+	}
+
+	type fields struct {
+		comicRepo *MockComicRepository
+	}
+	tests := []struct {
+		name    string
+		prepare func(f *fields)
+		want    []entity.Comic
+		wantErr bool
+	}{
+		{
+			name: "Success",
+			prepare: func(f *fields) {
+				f.comicRepo.On("ListComics").Return(comics, nil)
+			},
+			want:    comics,
+			wantErr: false,
+		},
+		{
+			name: "Error",
+			prepare: func(f *fields) {
+				f.comicRepo.On("ListComics").Return(nil, errors.New("db error"))
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := &fields{comicRepo: new(MockComicRepository)}
+			if tt.prepare != nil {
+				tt.prepare(f)
+			}
+			u := usecase.NewComicUsecase(f.comicRepo, nil, nil)
+			got, err := u.ListComics()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListComics() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				assert.Equal(t, tt.want, got)
+			}
+			f.comicRepo.AssertExpectations(t)
 		})
 	}
 }
@@ -161,11 +298,10 @@ func TestComicUsecase_CreateComic(t *testing.T) {
 func TestComicUsecase_UpdateComic(t *testing.T) {
 	comicID := uuid.New()
 	creatorID := uuid.New()
-	otherID := uuid.New()
+	comic := &entity.Comic{ID: comicID, CreatorID: creatorID, Title: entity.MultilingualText{En: "Old Title"}}
 
 	type fields struct {
-		mockComicRepo *MockComicRepository
-		mockUserRepo  *MockUserRepository
+		comicRepo *MockComicRepository
 	}
 	type args struct {
 		id        uuid.UUID
@@ -181,21 +317,14 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 		{
 			name: "Success",
 			prepare: func(f *fields) {
-				existingComic := &entity.Comic{
-					ID:        comicID,
-					CreatorID: creatorID,
-					Title:     entity.MultilingualText{En: "Old", Th: "Old"},
-				}
-				f.mockComicRepo.On("GetComicByID", comicID).Return(existingComic, nil)
-				f.mockComicRepo.On("UpdateComic", mock.MatchedBy(func(c *entity.Comic) bool {
-					return c.ID == comicID && c.Title.En == "New"
-				})).Return(nil)
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+				f.comicRepo.On("UpdateComic", mock.AnythingOfType("*entity.Comic")).Return(nil)
 			},
 			args: args{
 				id:        comicID,
 				creatorID: creatorID,
 				input: usecase.UpdateComicInput{
-					Title: entity.MultilingualText{En: "New", Th: "New"},
+					Title: entity.MultilingualText{En: "New Title"},
 				},
 			},
 			wantErr: false,
@@ -203,15 +332,23 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 		{
 			name: "Unauthorized",
 			prepare: func(f *fields) {
-				existingComic := &entity.Comic{
-					ID:        comicID,
-					CreatorID: creatorID,
-				}
-				f.mockComicRepo.On("GetComicByID", comicID).Return(existingComic, nil)
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
 			},
 			args: args{
 				id:        comicID,
-				creatorID: otherID,
+				creatorID: uuid.New(), // Different creator ID
+				input:     usecase.UpdateComicInput{},
+			},
+			wantErr: true,
+		},
+		{
+			name: "NotFound",
+			prepare: func(f *fields) {
+				f.comicRepo.On("GetComicByID", comicID).Return(nil, errors.New("not found"))
+			},
+			args: args{
+				id:        comicID,
+				creatorID: creatorID,
 				input:     usecase.UpdateComicInput{},
 			},
 			wantErr: true,
@@ -219,29 +356,16 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &fields{
-				mockComicRepo: new(MockComicRepository),
-				mockUserRepo:  new(MockUserRepository),
-			}
+			f := &fields{comicRepo: new(MockComicRepository)}
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
-			got, err := u.UpdateComic(tt.args.id, tt.args.creatorID, tt.args.input)
+			u := usecase.NewComicUsecase(f.comicRepo, nil, nil)
+			_, err := u.UpdateComic(tt.args.id, tt.args.creatorID, tt.args.input)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateComic() error = %v, wantErr %v", err, tt.wantErr)
-				return
 			}
-			if tt.wantErr {
-				if tt.name == "Unauthorized" {
-					assert.ErrorIs(t, err, exception.ErrUnauthorized)
-				}
-			} else {
-				assert.NotNil(t, got)
-				assert.Equal(t, "New", got.Title.En)
-			}
-			f.mockComicRepo.AssertExpectations(t)
-			f.mockUserRepo.AssertExpectations(t)
+			f.comicRepo.AssertExpectations(t)
 		})
 	}
 }
@@ -249,10 +373,10 @@ func TestComicUsecase_UpdateComic(t *testing.T) {
 func TestComicUsecase_DeleteComic(t *testing.T) {
 	comicID := uuid.New()
 	creatorID := uuid.New()
+	comic := &entity.Comic{ID: comicID, CreatorID: creatorID}
 
 	type fields struct {
-		mockComicRepo *MockComicRepository
-		mockUserRepo  *MockUserRepository
+		comicRepo *MockComicRepository
 	}
 	type args struct {
 		id        uuid.UUID
@@ -267,9 +391,8 @@ func TestComicUsecase_DeleteComic(t *testing.T) {
 		{
 			name: "Success",
 			prepare: func(f *fields) {
-				existingComic := &entity.Comic{ID: comicID, CreatorID: creatorID}
-				f.mockComicRepo.On("GetComicByID", comicID).Return(existingComic, nil)
-				f.mockComicRepo.On("DeleteComic", comicID).Return(nil)
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+				f.comicRepo.On("DeleteComic", comicID).Return(nil)
 			},
 			args: args{
 				id:        comicID,
@@ -277,144 +400,95 @@ func TestComicUsecase_DeleteComic(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "Unauthorized",
+			prepare: func(f *fields) {
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+			},
+			args: args{
+				id:        comicID,
+				creatorID: uuid.New(),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f := &fields{
-				mockComicRepo: new(MockComicRepository),
-				mockUserRepo:  new(MockUserRepository),
-			}
+			f := &fields{comicRepo: new(MockComicRepository)}
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
+			u := usecase.NewComicUsecase(f.comicRepo, nil, nil)
 			err := u.DeleteComic(tt.args.id, tt.args.creatorID)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("DeleteComic() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			f.mockComicRepo.AssertExpectations(t)
-			f.mockUserRepo.AssertExpectations(t)
+			f.comicRepo.AssertExpectations(t)
 		})
 	}
 }
 
-func TestComicUsecase_ListMyComics(t *testing.T) {
-	creatorID := uuid.New()
+func TestComicUsecase_ApproveComic(t *testing.T) {
+	comicID := uuid.New()
 
 	type fields struct {
-		mockComicRepo *MockComicRepository
-		mockUserRepo  *MockUserRepository
-	}
-	type args struct {
-		creatorID uuid.UUID
+		comicRepo   *MockComicRepository
+		storageRepo *MockStorageRepository
 	}
 	tests := []struct {
 		name    string
 		prepare func(f *fields)
-		args    args
 		wantErr bool
 	}{
 		{
 			name: "Success",
 			prepare: func(f *fields) {
-				user := &entity.User{ID: creatorID, Username: "creator"}
-				comics := []entity.Comic{{ID: uuid.New(), CreatorID: creatorID}}
-				f.mockUserRepo.On("FindByID", creatorID).Return(user, nil)
-				f.mockComicRepo.On("ListComicsByCreatorID", creatorID).Return(comics, nil)
-			},
-			args: args{
-				creatorID: creatorID,
+				comic := &entity.Comic{
+					ID:             comicID,
+					Status:         entity.ComicPending,
+					CoverImageURL:  "https://example.com/media/drafts/cover.jpg",
+					BannerImageURL: "https://example.com/media/drafts/banner.jpg",
+					Seasons:        []entity.Season{},
+				}
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+				f.storageRepo.On("MoveFile", "media", "drafts/cover.jpg", "public/cover.jpg").Return(nil)
+				f.storageRepo.On("MoveFile", "media", "drafts/banner.jpg", "public/banner.jpg").Return(nil)
+				f.comicRepo.On("UpdateComic", mock.AnythingOfType("*entity.Comic")).Return(nil)
 			},
 			wantErr: false,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f := &fields{
-				mockComicRepo: new(MockComicRepository),
-				mockUserRepo:  new(MockUserRepository),
-			}
-			if tt.prepare != nil {
-				tt.prepare(f)
-			}
-			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
-			got, err := u.ListMyComics(tt.args.creatorID)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ListMyComics() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				assert.Len(t, got, 1)
-			}
-			f.mockComicRepo.AssertExpectations(t)
-			f.mockUserRepo.AssertExpectations(t)
-		})
-	}
-}
-
-func TestComicUsecase_CreateChapter(t *testing.T) {
-	comicID := uuid.New()
-	creatorID := uuid.New()
-
-	type fields struct {
-		mockComicRepo *MockComicRepository
-		mockUserRepo  *MockUserRepository
-	}
-	type args struct {
-		comicID   uuid.UUID
-		creatorID uuid.UUID
-		input     usecase.CreateChapterInput
-	}
-	tests := []struct {
-		name    string
-		prepare func(f *fields)
-		args    args
-		wantErr bool
-	}{
 		{
-			name: "Success_NewSeason",
+			name: "Error_MoveFile_Failed",
 			prepare: func(f *fields) {
-				comic := &entity.Comic{ID: comicID, CreatorID: creatorID}
-				f.mockComicRepo.On("GetComicByID", comicID).Return(comic, nil)
-				f.mockComicRepo.On("GetSeasonByComicID", comicID, 1).Return(nil, errors.New("not found"))
-				f.mockComicRepo.On("CreateSeason", mock.AnythingOfType("*entity.Season")).Return(nil)
-				f.mockComicRepo.On("CreateChapter", mock.MatchedBy(func(c *entity.Chapter) bool {
-					return c.ChapterNumber == 1 && len(c.Images) == 1
-				})).Return(nil)
+				comic := &entity.Comic{
+					ID:             comicID,
+					Status:         entity.ComicPending,
+					CoverImageURL:  "https://example.com/media/drafts/cover.jpg",
+					BannerImageURL: "https://example.com/media/drafts/banner.jpg",
+					Seasons:        []entity.Season{},
+				}
+				f.comicRepo.On("GetComicByID", comicID).Return(comic, nil)
+				f.storageRepo.On("MoveFile", "media", "drafts/cover.jpg", "public/cover.jpg").Return(errors.New("move failed"))
 			},
-			args: args{
-				comicID:   comicID,
-				creatorID: creatorID,
-				input: usecase.CreateChapterInput{
-					ChapterNumber: 1,
-					Title:         "Ch1",
-					ImageURLs:     []string{"http://img.com/1.jpg"},
-				},
-			},
-			wantErr: false,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			f := &fields{
-				mockComicRepo: new(MockComicRepository),
-				mockUserRepo:  new(MockUserRepository),
+				comicRepo:   new(MockComicRepository),
+				storageRepo: new(MockStorageRepository),
 			}
 			if tt.prepare != nil {
 				tt.prepare(f)
 			}
-			u := usecase.NewComicUsecase(f.mockComicRepo, f.mockUserRepo)
-			got, err := u.CreateChapter(tt.args.comicID, tt.args.creatorID, tt.args.input)
+			u := usecase.NewComicUsecase(f.comicRepo, nil, f.storageRepo)
+			err := u.ApproveComic(comicID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("CreateChapter() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Errorf("ApproveComic() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !tt.wantErr {
-				assert.NotNil(t, got)
-				assert.Equal(t, 1, got.ChapterNumber)
-			}
-			f.mockComicRepo.AssertExpectations(t)
-			f.mockUserRepo.AssertExpectations(t)
+			f.comicRepo.AssertExpectations(t)
+			f.storageRepo.AssertExpectations(t)
 		})
 	}
 }

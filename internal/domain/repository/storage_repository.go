@@ -1,7 +1,6 @@
 package repository
 
-import "mime/multipart"
-
 type StorageRepository interface {
-	UploadFile(file *multipart.FileHeader, bucketName string) (string, error)
+	UploadFile(bucketName string, filePath string, data []byte, contentType string) (publicURL string, err error)
+	MoveFile(bucketName string, srcPath string, destPath string) error
 }

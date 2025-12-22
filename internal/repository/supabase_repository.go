@@ -2,14 +2,12 @@ package repository
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
 	"os"
-	"strings"
 
-	"github.com/google/uuid"
 	"github.com/pur108/talestoon-be/internal/domain/repository"
 )
 
@@ -19,74 +17,87 @@ func NewSupabaseRepository() repository.StorageRepository {
 	return &supabaseRepository{}
 }
 
-func (r *supabaseRepository) UploadFile(file *multipart.FileHeader, bucketName string) (string, error) {
+func (r *supabaseRepository) UploadFile(bucketName string, filePath string, data []byte, contentType string) (string, error) {
 	supabaseURL := os.Getenv("SUPABASE_PROJECT_URL")
-	supabaseKey := os.Getenv("SUPABASE_ANON_KEY")
+	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 	if supabaseURL == "" {
-		dbURL := os.Getenv("SUPABASE_URL")
-		if parts := strings.Split(dbURL, "@"); len(parts) > 1 {
-			if hostParts := strings.Split(parts[1], "."); len(hostParts) > 1 {
-				if strings.Contains(dbURL, "supabase.co") {
-					domainParts := strings.Split(parts[1], ":")
-					if len(domainParts) > 0 {
-						host := domainParts[0]
-						ref := strings.TrimPrefix(host, "db.")
-						supabaseURL = fmt.Sprintf("https://%s", ref)
-					}
-				}
-			}
-		}
-	}
-
-	var missingVars []string
-	if supabaseURL == "" {
-		missingVars = append(missingVars, "SUPABASE_PROJECT_URL")
+		return "", fmt.Errorf("server storage configuration missing: SUPABASE_PROJECT_URL")
 	}
 	if supabaseKey == "" {
-		missingVars = append(missingVars, "SUPABASE_ANON_KEY")
+		return "", fmt.Errorf("server storage configuration missing: SUPABASE_SERVICE_ROLE_KEY")
 	}
 
-	if len(missingVars) > 0 {
-		return "", fmt.Errorf("server storage configuration missing: %s", strings.Join(missingVars, ", "))
-	}
+	// Upload endpoint: POST /storage/v1/object/{bucket}/{wildcard}
+	uploadURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", supabaseURL, bucketName, filePath)
 
-	src, err := file.Open()
-	if err != nil {
-		return "", fmt.Errorf("failed to open file: %w", err)
-	}
-	defer src.Close()
-
-	fileBytes, err := io.ReadAll(src)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
-	}
-
-	// Determine file extension
-	ext := strings.ToLower(file.Filename[strings.LastIndex(file.Filename, "."):])
-	filename := uuid.New().String() + ext
-
-	uploadURL := fmt.Sprintf("%s/storage/v1/object/%s/%s", supabaseURL, bucketName, filename)
-	req, err := http.NewRequest("POST", uploadURL, bytes.NewBuffer(fileBytes))
+	req, err := http.NewRequest("POST", uploadURL, bytes.NewBuffer(data))
 	if err != nil {
 		return "", fmt.Errorf("failed to create upload request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Bearer "+supabaseKey)
-	req.Header.Set("Content-Type", file.Header.Get("Content-Type"))
+	req.Header.Set("Content-Type", contentType)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to upload to storage: %w", err)
+		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("storage provider rejected upload: %s", string(body))
 	}
 
-	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", supabaseURL, bucketName, filename)
+	publicURL := fmt.Sprintf("%s/storage/v1/object/public/%s/%s", supabaseURL, bucketName, filePath)
 	return publicURL, nil
+}
+
+func (r *supabaseRepository) MoveFile(bucketName string, srcPath string, destPath string) error {
+	supabaseURL := os.Getenv("SUPABASE_PROJECT_URL")
+	supabaseKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+	if supabaseURL == "" {
+		return fmt.Errorf("server storage configuration missing: SUPABASE_PROJECT_URL")
+	}
+	if supabaseKey == "" {
+		return fmt.Errorf("server storage configuration missing: SUPABASE_SERVICE_ROLE_KEY")
+	}
+
+	moveURL := fmt.Sprintf("%s/storage/v1/object/move", supabaseURL)
+
+	payload := map[string]string{
+		"bucketId":       bucketName,
+		"sourceKey":      srcPath,
+		"destinationKey": destPath,
+	}
+	jsonBody, _ := json.Marshal(payload)
+
+	req, err := http.NewRequest("POST", moveURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("failed to create move request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+supabaseKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to move file: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("storage provider rejected move: %s", string(body))
+	}
+
+	return nil
 }

@@ -151,6 +151,30 @@ func (h *ComicHandler) DeleteComic(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+func (h *ComicHandler) RequestPublish(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid comic ID"})
+	}
+
+	userIDStr := c.Locals("user_id").(string)
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid user ID"})
+	}
+
+	err = h.comicUsecase.RequestPublish(id, userID)
+	if err != nil {
+		if err == exception.ErrUnauthorized {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Unauthorized"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"message": "Comic submitted for review"})
+}
+
 func (h *ComicHandler) GetComic(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := uuid.Parse(idStr)

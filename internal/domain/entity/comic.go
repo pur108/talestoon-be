@@ -11,13 +11,18 @@ import (
 )
 
 type ComicStatus string
+type ComicSerializationStatus string
 type ChapterStatus string
 
 const (
 	ComicDraft     ComicStatus = "draft"
+	ComicPending   ComicStatus = "pending_review"
 	ComicPublished ComicStatus = "published"
-	ComicHiatus    ComicStatus = "hiatus"
-	ComicCompleted ComicStatus = "completed"
+	ComicRejected  ComicStatus = "rejected"
+
+	ComicOngoing   ComicSerializationStatus = "ongoing"
+	ComicHiatus    ComicSerializationStatus = "hiatus"
+	ComicCompleted ComicSerializationStatus = "completed"
 
 	VisibilityPublic   = "public"
 	VisibilityPrivate  = "private"
@@ -47,26 +52,26 @@ func (m *MultilingualText) Scan(value interface{}) error {
 }
 
 type Comic struct {
-	ID                uuid.UUID        `gorm:"type:uuid;primary_key;" json:"id"`
-	CreatorID         uuid.UUID        `gorm:"type:uuid;not null;index" json:"creator_id"`
-	Title             MultilingualText `gorm:"type:jsonb;serializer:json" json:"title"`
-	Subtitle          MultilingualText `gorm:"type:jsonb;serializer:json" json:"subtitle"`
-	Description       MultilingualText `gorm:"type:jsonb;serializer:json" json:"description"`
-	Author            string           `gorm:"index" json:"author"`
-	Genres            pq.StringArray   `gorm:"type:text[]" json:"genres"`
-	Tags              []Tag            `gorm:"many2many:comic_tags;" json:"tags"`
-	CoverImageURL     string           `json:"cover_image_url"`
-	BannerImageURL    string           `json:"banner_image_url"`
-	Status            ComicStatus      `gorm:"default:'draft'" json:"status"`
-	Visibility        string           `gorm:"default:'public'" json:"visibility"`
-	NSFW              bool             `gorm:"default:false" json:"nsfw"`
-	SchedulePublishAt *time.Time       `json:"schedule_publish_at"`
-	//MonetizationEnabled bool             `gorm:"default:false" json:"monetization_enabled"`
-	//MonetizationType    string           `json:"monetization_type"`
-	//DefaultUnlockType   string           `json:"default_unlock_type"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `gorm:"index" json:"updated_at"`
-	Seasons   []Season  `json:"seasons,omitempty"`
+	ID                  uuid.UUID                `gorm:"type:uuid;primary_key;" json:"id"`
+	CreatorID           uuid.UUID                `gorm:"type:uuid;not null;index" json:"creator_id"`
+	Title               MultilingualText         `gorm:"type:jsonb;serializer:json" json:"title"`
+	Subtitle            MultilingualText         `gorm:"type:jsonb;serializer:json" json:"subtitle"`
+	Description         MultilingualText         `gorm:"type:jsonb;serializer:json" json:"description"`
+	Author              string                   `gorm:"index" json:"author"`
+	Genres              pq.StringArray           `gorm:"type:text[]" json:"genres"`
+	Tags                []Tag                    `gorm:"many2many:comic_tags;" json:"tags"`
+	CoverImageURL       string                   `json:"cover_image_url"`
+	BannerImageURL      string                   `json:"banner_image_url"`
+	Status              ComicStatus              `gorm:"default:'draft'" json:"status"`
+	SerializationStatus ComicSerializationStatus `gorm:"default:'ongoing'" json:"serialization_status"`
+	Visibility          string                   `gorm:"default:'public'" json:"visibility"`
+	NSFW                bool                     `gorm:"default:false" json:"nsfw"`
+	SchedulePublishAt   *time.Time               `json:"schedule_publish_at"`
+	ApprovedAt          *time.Time               `json:"approved_at"`
+	RejectionReason     string                   `json:"rejection_reason"`
+	CreatedAt           time.Time                `json:"created_at"`
+	UpdatedAt           time.Time                `gorm:"index" json:"updated_at"`
+	Seasons             []Season                 `json:"seasons,omitempty"`
 }
 
 type Tag struct {

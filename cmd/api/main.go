@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/pur108/talestoon-be/internal/server"
 	"context"
 	"fmt"
 	"log"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/pur108/talestoon-be/internal/server"
 )
 
 func gracefulShutdown(fiberServer *server.FiberServer, done chan bool) {

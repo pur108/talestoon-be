@@ -46,7 +46,10 @@ func mustStartPostgresContainer() (func(context.Context, ...testcontainers.Termi
 	}
 
 	connStr := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPwd, dbHost, dbPort.Port(), dbName)
-	os.Setenv("SUPABASE_DB_URL", connStr)
+	err = os.Setenv("SUPABASE_DB_URL", connStr)
+	if err != nil {
+		return dbContainer.Terminate, err
+	}
 
 	return dbContainer.Terminate, err
 }
