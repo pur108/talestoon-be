@@ -4,8 +4,8 @@ import (
 	"log"
 
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain/entity"
-	"github.com/pur108/talestoon-be/internal/domain/repository"
+	"github.com/pur108/webteen-be/internal/domain/entity"
+	"github.com/pur108/webteen-be/internal/domain/repository"
 	"gorm.io/gorm"
 )
 
@@ -48,7 +48,7 @@ func (r *comicRepository) GetChapterByID(id uuid.UUID) (*entity.Chapter, error) 
 	}
 
 	log.Println("chapter: ", chapter)
-	
+
 	return &chapter, nil
 }
 

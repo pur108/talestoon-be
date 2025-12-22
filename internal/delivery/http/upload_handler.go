@@ -4,7 +4,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/pur108/talestoon-be/internal/usecase"
+	"github.com/pur108/webteen-be/internal/usecase"
 )
 
 type UploadHandler struct {

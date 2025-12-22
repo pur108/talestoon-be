@@ -12,7 +12,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/webteen-be/internal/domain/entity"
 )
 
 // Service represents a service that interacts with a database.

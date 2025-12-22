@@ -5,8 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain/exception"
-	"github.com/pur108/talestoon-be/internal/usecase"
+	"github.com/pur108/webteen-be/internal/domain/exception"
+	"github.com/pur108/webteen-be/internal/usecase"
 )
 
 type ComicHandler struct {

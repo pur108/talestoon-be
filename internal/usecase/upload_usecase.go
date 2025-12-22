@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain/repository"
+	"github.com/pur108/webteen-be/internal/domain/repository"
 )
 
 type UploadResponse struct {

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/pur108/talestoon-be/internal/domain/entity"
-	"github.com/pur108/talestoon-be/internal/usecase"
+	"github.com/pur108/webteen-be/internal/domain/entity"
+	"github.com/pur108/webteen-be/internal/usecase"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/crypto/bcrypt"

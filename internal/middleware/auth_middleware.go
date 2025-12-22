@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/pur108/talestoon-be/internal/domain/entity"
+	"github.com/pur108/webteen-be/internal/domain/entity"
 )
 
 func Protected() fiber.Handler {

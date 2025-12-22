@@ -1,4 +1,4 @@
-module github.com/pur108/talestoon-be
+module github.com/pur108/webteen-be
 
 go 1.25.0
 
