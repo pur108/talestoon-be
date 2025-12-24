@@ -2,6 +2,7 @@ package http
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -35,8 +36,20 @@ func (h *ComicHandler) CreateChapter(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
-	if req.Title == "" || req.ChapterNumber == 0 || len(req.ImageURLs) == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Title, chapter number, and at least one image are required"})
+	if len(req.Translations) == 0 || req.ChapterNumber == 0 || len(req.ImageURLs) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Translations (at least one), chapter number, and at least one image are required"})
+	}
+
+	// Validate title presence in translations
+	hasTitle := false
+	for _, t := range req.Translations {
+		if t.Title != "" {
+			hasTitle = true
+			break
+		}
+	}
+	if !hasTitle {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "At least one translation must have a title"})
 	}
 
 	chapter, err := h.comicUsecase.CreateChapter(comicID, userID, req)
@@ -63,11 +76,20 @@ func (h *ComicHandler) CreateComic(c *fiber.Ctx) error {
 	}
 	req.CreatorID = userID
 
-	if req.Title.En == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "English title is required"})
+	if len(req.Translations) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "At least one translation is required"})
 	}
-	if req.Title.En == "" && req.Title.Th == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Title must have at least one language"})
+
+	hasTitle := false
+	for _, t := range req.Translations {
+		if t.Title != "" {
+			hasTitle = true
+			break
+		}
+	}
+
+	if !hasTitle {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Title is required in at least one language"})
 	}
 
 	comic, err := h.comicUsecase.CreateComic(req)
@@ -206,10 +228,26 @@ func (h *ComicHandler) GetChapter(c *fiber.Ctx) error {
 }
 
 func (h *ComicHandler) ListComics(c *fiber.Ctx) error {
-	comics, err := h.comicUsecase.ListComics()
+	tagsParam := c.Query("tags")
+	var tags []string
+	if tagsParam != "" {
+		tags = strings.Split(tagsParam, ",")
+	}
+
+	comics, err := h.comicUsecase.ListComics(tags)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch comics"})
 	}
 
 	return c.JSON(comics)
+}
+
+func (h *ComicHandler) ListTags(c *fiber.Ctx) error {
+	filterType := c.Query("type")
+	tags, err := h.comicUsecase.ListTags(filterType)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to fetch tags"})
+	}
+
+	return c.JSON(tags)
 }

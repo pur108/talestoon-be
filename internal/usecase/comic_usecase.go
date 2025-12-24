@@ -17,9 +17,11 @@ type ComicUsecase interface {
 	GetComic(id uuid.UUID) (*entity.Comic, error)
 	GetChapter(id uuid.UUID) (*entity.Chapter, error)
 	CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*entity.Chapter, error)
-	ListComics() ([]entity.Comic, error)
+	ListComics(tags []string) ([]entity.Comic, error)
 	ListPendingComics() ([]entity.Comic, error)
 	ListMyComics(creatorID uuid.UUID) ([]entity.Comic, error)
+	ListComicsByAuthor(author string) ([]entity.Comic, error)
+	ListTags(filterType string) ([]entity.Tag, error)
 	UpdateComic(id uuid.UUID, creatorID uuid.UUID, input UpdateComicInput) (*entity.Comic, error)
 	DeleteComic(id uuid.UUID, creatorID uuid.UUID) error
 	RequestPublish(id uuid.UUID, creatorID uuid.UUID) error
@@ -37,14 +39,19 @@ func NewComicUsecase(comicRepo repository.ComicRepository, userRepo repository.U
 	return &comicUsecase{comicRepo, userRepo, storageRepo}
 }
 
+type ComicTranslationInput struct {
+	LanguageCode string `json:"language_code"`
+	Title        string `json:"title"`
+	Subtitle     string `json:"subtitle"`
+	Description  string `json:"description"`
+}
+
 type CreateComicInput struct {
 	CreatorID           uuid.UUID                       `json:"creator_id"`
-	Title               entity.MultilingualText         `json:"title"`
-	Subtitle            entity.MultilingualText         `json:"subtitle"`
-	Description         entity.MultilingualText         `json:"description"`
+	Translations        []ComicTranslationInput         `json:"translations"`
 	Author              string                          `json:"author"`
-	Genres              []string                        `json:"genres"`
-	Tags                []entity.MultilingualText       `json:"tags"`
+	Tags                []TagTranslationInput           `json:"tags"`
+	TagIDs              []uuid.UUID                     `json:"tag_ids"`
 	CoverImageURL       string                          `json:"cover_image_url"`
 	BannerImageURL      string                          `json:"banner_image_url"`
 	Status              entity.ComicStatus              `json:"status"`
@@ -54,12 +61,14 @@ type CreateComicInput struct {
 	SchedulePublishAt   *time.Time                      `json:"schedule_publish_at"`
 }
 
+type TagTranslationInput struct {
+	LanguageCode string `json:"language_code"`
+	Name         string `json:"name"`
+}
+
 type UpdateComicInput struct {
-	Title               entity.MultilingualText         `json:"title"`
-	Subtitle            entity.MultilingualText         `json:"subtitle"`
-	Description         entity.MultilingualText         `json:"description"`
+	Translations        []ComicTranslationInput         `json:"translations"`
 	Author              string                          `json:"author"`
-	Genres              []string                        `json:"genres"`
 	CoverImageURL       string                          `json:"cover_image_url"`
 	BannerImageURL      string                          `json:"banner_image_url"`
 	Status              entity.ComicStatus              `json:"status"`
@@ -68,25 +77,24 @@ type UpdateComicInput struct {
 	NSFW                bool                            `json:"nsfw"`
 }
 
-// ... existing code ...
+type ChapterTranslationInput struct {
+	LanguageCode string `json:"language_code"`
+	Title        string `json:"title"`
+}
 
 type CreateChapterInput struct {
-	Title         string   `json:"title"`
-	SeasonTitle   string   `json:"season_title"`
-	ChapterNumber int      `json:"chapter_number"`
-	ImageURLs     []string `json:"image_urls"`
-	Price         float64  `json:"price"`
+	Translations  []ChapterTranslationInput `json:"translations"`
+	ChapterNumber int                       `json:"chapter_number"`
+	ThumbnailURL  string                    `json:"thumbnail_url"`
+	ImageURLs     []string                  `json:"image_urls"`
 }
 
 func (u *comicUsecase) CreateComic(input CreateComicInput) (*entity.Comic, error) {
+	comicID := uuid.New()
 	comic := &entity.Comic{
-		ID:                  uuid.New(),
+		ID:                  comicID,
 		CreatorID:           input.CreatorID,
-		Title:               input.Title,
-		Subtitle:            input.Subtitle,
-		Description:         input.Description,
 		Author:              input.Author,
-		Genres:              input.Genres,
 		CoverImageURL:       input.CoverImageURL,
 		BannerImageURL:      input.BannerImageURL,
 		Status:              input.Status,
@@ -96,9 +104,22 @@ func (u *comicUsecase) CreateComic(input CreateComicInput) (*entity.Comic, error
 		SchedulePublishAt:   input.SchedulePublishAt,
 		CreatedAt:           time.Now(),
 		UpdatedAt:           time.Now(),
+		Translations:        []entity.ComicTranslation{},
 	}
 
-	// Default to ongoing if not specified
+	for _, t := range input.Translations {
+		comic.Translations = append(comic.Translations, entity.ComicTranslation{
+			ID:               uuid.New(),
+			ComicID:          comicID,
+			LanguageCode:     t.LanguageCode,
+			Title:            t.Title,
+			Synopsis:         t.Description,
+			AlternativeTitle: t.Subtitle,
+			CreatedAt:        time.Now(),
+			UpdatedAt:        time.Now(),
+		})
+	}
+
 	if comic.SerializationStatus == "" {
 		comic.SerializationStatus = entity.ComicOngoing
 	}
@@ -106,29 +127,32 @@ func (u *comicUsecase) CreateComic(input CreateComicInput) (*entity.Comic, error
 	var tags []entity.Tag
 	for _, t := range input.Tags {
 		tagID := uuid.New()
-		slug := utils.SimpleSlug(t.En)
+		slug := utils.SimpleSlug(t.Name)
 
-		tags = append(tags, entity.Tag{
+		newTag := entity.Tag{
 			ID:        tagID,
 			Slug:      slug,
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
+			Type:      "genre",
 			Translations: []entity.TagTranslation{
 				{
 					ID:       uuid.New(),
 					TagID:    tagID,
-					Language: "en",
-					Name:     t.En,
-				},
-				{
-					ID:       uuid.New(),
-					TagID:    tagID,
-					Language: "th",
-					Name:     t.Th,
+					Language: t.LanguageCode,
+					Name:     t.Name,
 				},
 			},
+		}
+		tags = append(tags, newTag)
+	}
+
+	for _, tagID := range input.TagIDs {
+		tags = append(tags, entity.Tag{
+			ID: tagID,
 		})
 	}
+
 	comic.Tags = tags
 
 	if err := u.comicRepo.CreateComic(comic); err != nil {
@@ -152,8 +176,8 @@ func (u *comicUsecase) GetChapter(id uuid.UUID) (*entity.Chapter, error) {
 	return u.comicRepo.GetChapterByID(id)
 }
 
-func (u *comicUsecase) ListComics() ([]entity.Comic, error) {
-	return u.comicRepo.ListComics()
+func (u *comicUsecase) ListComics(tags []string) ([]entity.Comic, error) {
+	return u.comicRepo.ListComics(tags)
 }
 
 func (u *comicUsecase) ListPendingComics() ([]entity.Comic, error) {
@@ -169,6 +193,14 @@ func (u *comicUsecase) ListMyComics(creatorID uuid.UUID) ([]entity.Comic, error)
 	return u.comicRepo.ListComicsByCreatorID(user.ID)
 }
 
+func (u *comicUsecase) ListTags(filterType string) ([]entity.Tag, error) {
+	return u.comicRepo.ListTags(filterType)
+}
+
+func (u *comicUsecase) ListComicsByAuthor(author string) ([]entity.Comic, error) {
+	return u.comicRepo.ListComicsByAuthor(author)
+}
+
 func (u *comicUsecase) CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, input CreateChapterInput) (*entity.Chapter, error) {
 	comic, err := u.comicRepo.GetComicByID(comicID)
 	if err != nil {
@@ -178,28 +210,26 @@ func (u *comicUsecase) CreateChapter(comicID uuid.UUID, creatorID uuid.UUID, inp
 		return nil, exception.ErrUnauthorized
 	}
 
-	season, err := u.comicRepo.GetSeasonByComicID(comic.ID, 1)
-	if err != nil || season == nil {
-		newSeason := &entity.Season{
-			ID:           uuid.New(),
-			ComicID:      comic.ID,
-			SeasonNumber: 1,
-			Title:        "Season 1",
-		}
-		if err := u.comicRepo.CreateSeason(newSeason); err != nil {
-			return nil, fmt.Errorf("failed to create season: %w", err)
-		}
-		season = newSeason
-	}
-
+	// No Season creation anymore
+	chapterID := uuid.New()
 	chapter := &entity.Chapter{
-		ID:            uuid.New(),
-		SeasonID:      season.ID,
+		ID:            chapterID,
+		ComicID:       comic.ID, // Direct link to Comic
 		ChapterNumber: input.ChapterNumber,
-		Title:         input.Title,
 		Status:        entity.ChapterPublished,
+		ThumbnailURL:  input.ThumbnailURL,
 		PublishedAt:   nowPtr(),
 		Images:        []entity.ChapterImage{},
+		Translations:  []entity.ChapterTranslation{},
+	}
+
+	for _, t := range input.Translations {
+		chapter.Translations = append(chapter.Translations, entity.ChapterTranslation{
+			ID:           uuid.New(),
+			ChapterID:    chapterID,
+			LanguageCode: t.LanguageCode,
+			Title:        t.Title,
+		})
 	}
 
 	for i, url := range input.ImageURLs {
@@ -232,11 +262,9 @@ func (u *comicUsecase) UpdateComic(id uuid.UUID, creatorID uuid.UUID, input Upda
 	if comic.CreatorID != creatorID {
 		return nil, exception.ErrUnauthorized
 	}
-	comic.Title = input.Title
-	comic.Subtitle = input.Subtitle
-	comic.Description = input.Description
+
+	// Update base fields
 	comic.Author = input.Author
-	comic.Genres = input.Genres
 	comic.CoverImageURL = input.CoverImageURL
 	comic.BannerImageURL = input.BannerImageURL
 	comic.Status = input.Status
@@ -244,6 +272,38 @@ func (u *comicUsecase) UpdateComic(id uuid.UUID, creatorID uuid.UUID, input Upda
 	comic.Visibility = input.Visibility
 	comic.NSFW = input.NSFW
 	comic.UpdatedAt = time.Now()
+
+	// Update Translations logic (simplified for implementation speed: overwrite if exists in list, or append)
+	// Ideally we find En translation and update it.
+	updateTranslation := func(lang string, title, synopsis, altTitle string) {
+		found := false
+		for i := range comic.Translations {
+			if comic.Translations[i].LanguageCode == lang {
+				comic.Translations[i].Title = title
+				comic.Translations[i].Synopsis = synopsis
+				comic.Translations[i].AlternativeTitle = altTitle
+				comic.Translations[i].UpdatedAt = time.Now()
+				found = true
+				break
+			}
+		}
+		if !found {
+			comic.Translations = append(comic.Translations, entity.ComicTranslation{
+				ID:               uuid.New(),
+				ComicID:          comic.ID,
+				LanguageCode:     lang,
+				Title:            title,
+				Synopsis:         synopsis,
+				AlternativeTitle: altTitle,
+				CreatedAt:        time.Now(),
+				UpdatedAt:        time.Now(),
+			})
+		}
+	}
+
+	for _, t := range input.Translations {
+		updateTranslation(t.LanguageCode, t.Title, t.Description, t.Subtitle)
+	}
 
 	if err := u.comicRepo.UpdateComic(comic); err != nil {
 		return nil, err
@@ -323,16 +383,15 @@ func (u *comicUsecase) ApproveComic(id uuid.UUID) error {
 		return errMove
 	}
 
-	for i := range comic.Seasons {
-		for j := range comic.Seasons[i].Chapters {
-			for k := range comic.Seasons[i].Chapters[j].Images {
-				img := &comic.Seasons[i].Chapters[j].Images[k]
-				newURL, err := moveImage(img.ImageURL)
-				if err != nil {
-					return err
-				}
-				img.ImageURL = newURL
+	// Updated Loop for flat Chapters structure
+	for i := range comic.Chapters {
+		for j := range comic.Chapters[i].Images {
+			img := &comic.Chapters[i].Images[j]
+			newURL, err := moveImage(img.ImageURL)
+			if err != nil {
+				return err
 			}
+			img.ImageURL = newURL
 		}
 	}
 

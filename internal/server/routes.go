@@ -69,6 +69,7 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	group.Get("/comics", comicHandler.ListComics)
 	group.Get("/comics/:id", comicHandler.GetComic)
 	group.Get("/chapters/:id", comicHandler.GetChapter)
+	group.Get("/tags", comicHandler.ListTags)
 
 	// Comic Creator Routes
 	creatorGroup := group.Group("/creator/comics", middleware.Protected(), middleware.RoleRequired(entity.RoleCreator, entity.RoleAdmin, entity.RoleUser))

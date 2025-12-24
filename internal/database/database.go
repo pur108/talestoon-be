@@ -50,8 +50,9 @@ func New() Service {
 	err = db.AutoMigrate(
 		&entity.User{},
 		&entity.Comic{},
-		&entity.Season{},
+		&entity.ComicTranslation{},
 		&entity.Chapter{},
+		&entity.ChapterTranslation{},
 		&entity.ChapterImage{},
 		&entity.Tag{},
 		&entity.TagTranslation{},
