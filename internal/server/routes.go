@@ -81,26 +81,18 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	creatorGroup.Post("/:id/publish-request", comicHandler.RequestPublish)
 
 	// Library Routes
-	// libGroup := group.Group("/library")
-
-	// // Public Library Folders
-	// libGroup.Get("/public/folders/:slug", libraryHandler.GetPublicFolder)
-
-	// Protected Library Routes
-	// libProtected := libGroup.Group("/", middleware.Protected())
-	// libProtected.Post("/entries", libraryHandler.AddToLibrary)
-	// libProtected.Delete("/entries/:comic_id", libraryHandler.RemoveFromLibrary)
-	// libProtected.Get("/entries", libraryHandler.GetUserLibrary)
-
-	// Protected Folder Management
-	// libProtected.Post("/folders", libraryHandler.CreateFolder)
-	// libProtected.Delete("/folders/:id", libraryHandler.DeleteFolder)
-	// libProtected.Get("/folders", libraryHandler.GetUserFolders)
-	// libProtected.Get("/folders/:id", libraryHandler.GetFolder)
-
-	// Protected Folder Items
-	// libProtected.Post("/folders/:id/items", libraryHandler.AddToFolder)
-	// libProtected.Delete("/folders/:id/items/:comic_id", libraryHandler.RemoveFromFolder)
+	libraryRepo := repository.NewLibraryRepository(db)
+	libraryUsecase := usecase.NewLibraryUsecase(libraryRepo, comicRepo)
+	libraryHandler := http.NewLibraryHandler(s.App, libraryUsecase)
+	libGroup := group.Group("/library", middleware.Protected())
+	libGroup.Get("/", libraryHandler.GetUserLibrary)
+	libGroup.Post("/items", libraryHandler.AddToLibrary)
+	libGroup.Delete("/items/:comic_id", libraryHandler.RemoveFromLibrary)
+	libGroup.Get("/check/:comic_id", libraryHandler.CheckInLibrary)
+	libGroup.Post("/folders", libraryHandler.CreateFolder)
+	libGroup.Get("/folders", libraryHandler.ListFolders)
+	libGroup.Get("/folders/:id", libraryHandler.GetFolder)
+	libGroup.Delete("/folders/:id", libraryHandler.DeleteFolder)
 
 	// Upload Routes
 	group.Post("/upload", middleware.Protected(), uploadHandler.UploadFile)

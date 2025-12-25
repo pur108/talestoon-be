@@ -56,7 +56,6 @@ func New() Service {
 		&entity.ChapterImage{},
 		&entity.Tag{},
 		&entity.TagTranslation{},
-		&entity.LibraryEntry{},
 		&entity.LibraryFolder{},
 		&entity.LibraryFolderItem{},
 	)

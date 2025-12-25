@@ -6,24 +6,16 @@ import (
 	"github.com/google/uuid"
 )
 
-type LibraryEntry struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key;" json:"id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
-	ComicID   uuid.UUID `gorm:"type:uuid;not null;index" json:"comic_id"`
-	Comic     Comic     `json:"comic,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 type LibraryFolder struct {
-	ID          uuid.UUID           `gorm:"type:uuid;primary_key;" json:"id"`
-	UserID      uuid.UUID           `gorm:"type:uuid;not null;index" json:"user_id"`
-	Name        string              `gorm:"not null" json:"name"`
-	Description string              `json:"description"`
-	IsPublic    bool                `gorm:"default:false" json:"is_public"`
-	Slug        string              `gorm:"uniqueIndex" json:"slug"`
-	Items       []LibraryFolderItem `gorm:"foreignKey:FolderID" json:"items,omitempty"`
-	CreatedAt   time.Time           `json:"created_at"`
-	UpdatedAt   time.Time           `json:"updated_at"`
+	ID        uuid.UUID           `gorm:"type:uuid;primary_key;" json:"id"`
+	UserID    uuid.UUID           `gorm:"type:uuid;not null;index" json:"user_id"`
+	Name      string              `gorm:"not null" json:"name"`
+	Slug      string              `gorm:"index" json:"slug"`
+	IsPublic  bool                `gorm:"default:false" json:"is_public"`
+	IsDefault bool                `gorm:"default:false" json:"is_default"`
+	Items     []LibraryFolderItem `gorm:"foreignKey:FolderID;constraint:OnDelete:CASCADE;" json:"items,omitempty"`
+	CreatedAt time.Time           `json:"created_at"`
+	UpdatedAt time.Time           `json:"updated_at"`
 }
 
 type LibraryFolderItem struct {

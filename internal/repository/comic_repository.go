@@ -1,8 +1,6 @@
 package repository
 
 import (
-	"log"
-
 	"github.com/google/uuid"
 	"github.com/pur108/webteen-be/internal/domain/entity"
 	"github.com/pur108/webteen-be/internal/domain/repository"
@@ -27,8 +25,7 @@ func (r *comicRepository) CreateChapter(chapter *entity.Chapter) error {
 
 func (r *comicRepository) GetComicByID(id uuid.UUID) (*entity.Comic, error) {
 	var comic entity.Comic
-	// Preload Translations, Tags, and Chapters (flat)
-	// Also preload Chapter Translations
+
 	err := r.db.
 		Preload("Translations").
 		Preload("Tags.Translations").
@@ -55,8 +52,6 @@ func (r *comicRepository) GetChapterByID(id uuid.UUID) (*entity.Chapter, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("chapter: ", chapter)
 
 	return &chapter, nil
 }
